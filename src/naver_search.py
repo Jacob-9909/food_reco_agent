@@ -1,22 +1,28 @@
-"""
-네이버 검색 API를 활용한 맛집 검색 모듈
-"""
 import os
 import json
 import urllib.request
 import urllib.parse
 import urllib.error
+from typing import List, Dict
 
-def search_web(query, display=5):
+class NaverAPIError(Exception):
+    """네이버 API 호출 시 발생하는 오류"""
+    pass
+
+def search_web(query: str, display: int = 50) -> List[Dict[str, str]]:
     """
-    네이버 웹 검색 API를 사용하여 정보를 검색합니다.
+    네이버 웹 검색 API를 사용하여 정보를 검색하고 구조화된 딕셔너리 리스트를 반환합니다.
     
     Args:
         query (str): 검색어
-        display (int): 검색 결과 출력 건수 (기본값 5)
+        display (int): 검색 결과 출력 건수 (기본값 50)
         
     Returns:
-        list: 검색 결과 목록
+        List[Dict[str, str]]: 검색 결과 목록. 각 항목은 'title', 'description', 'link' 키를 가집니다.
+        
+    Raises:
+        ValueError: API 키가 설정되지 않은 경우
+        NaverAPIError: API 호출에 실패한 경우
     """
     client_id = os.getenv("NAVER_CLIENT_ID")
     client_secret = os.getenv("NAVER_CLIENT_SECRET")
@@ -34,10 +40,10 @@ def search_web(query, display=5):
     
     # URL 인코딩
     query_string = urllib.parse.urlencode(params)
-    url = url + "?" + query_string
+    request_url = url + "?" + query_string
     
     # HTTP 요청 헤더 설정
-    request = urllib.request.Request(url)
+    request = urllib.request.Request(request_url)
     request.add_header("X-Naver-Client-Id", client_id)
     request.add_header("X-Naver-Client-Secret", client_secret)
     
@@ -59,23 +65,23 @@ def search_web(query, display=5):
                     # HTML 태그 제거
                     title = item['title'].replace('<b>', '').replace('</b>', '')
                     description = item['description'].replace('<b>', '').replace('</b>', '')
-                    # 검색 결과 포맷팅
-                    search_info = f"{title}\n{description}\n{item['link']}"
-                    search_results.append(search_info)
-                return search_results
-            else:
-                return ["검색 결과가 없습니다."]
+                    search_results.append({
+                        "title": title,
+                        "description": description,
+                        "link": item['link']
+                    })
+            return search_results
         else:
-            return [f"API 호출 실패: {response_code}"]
+            raise NaverAPIError(f"API 호출 실패: {response_code}")
             
     except urllib.error.HTTPError as e:
-        return [f"HTTP 오류: {e.code}"]
+        raise NaverAPIError(f"HTTP 오류: {e.code} - {e.read().decode('utf-8')}") from e
     except urllib.error.URLError as e:
-        return [f"URL 오류: {e.reason}"]
+        raise NaverAPIError(f"URL 오류: {e.reason}") from e
     except Exception as e:
-        return [f"검색 중 오류 발생: {e}"]
+        raise NaverAPIError(f"검색 중 알 수 없는 오류 발생: {e}") from e
 
-def search_restaurants(location, cuisine, weather):
+def search_restaurants(location: str, cuisine: str, weather: str) -> List[Dict[str, str]]:
     """
     네이버 웹 검색 API를 사용하여 맛집을 검색합니다.
     
@@ -85,7 +91,7 @@ def search_restaurants(location, cuisine, weather):
         weather (str): 날씨 (예: '맑음', '흐림', '비', '더움', '추움')
         
     Returns:
-        list: 맛집 추천 목록
+        List[Dict[str, str]]: 맛집 추천 목록
     """
     # 날씨에 따른 키워드 추가
     weather_keywords = {
@@ -101,13 +107,22 @@ def search_restaurants(location, cuisine, weather):
     query = f"{location} {cuisine} {weather_keyword} 맛집 추천"
     print(f"네이버 검색어: {query}")
     
-    # 네이버 API로 검색
-    results = search_web(query)
-    
-    if not results or results[0].startswith("검색 중 오류") or results[0].startswith("API 호출"):
-        # 오류 발생 시 간단한 검색어로 재시도
+    try:
+        results = search_web(query)
+        if not results:
+            # 결과가 없을 경우, 더 간단한 검색어로 재시도
+            print("첫 번째 검색 결과가 없습니다. 단순 검색어로 재시도합니다.")
+            query_simple = f"{location} {cuisine} 맛집"
+            print(f"재시도 검색어: {query_simple}")
+            results = search_web(query_simple)
+    except NaverAPIError as e:
+        print(f"네이버 API 오류 발생: {e}. 단순 검색어로 재시도합니다.")
         query_simple = f"{location} {cuisine} 맛집"
-        print(f"오류 발생으로 단순 검색어로 재시도: {query_simple}")
-        results = search_web(query_simple)
-        
+        print(f"재시도 검색어: {query_simple}")
+        try:
+            results = search_web(query_simple)
+        except NaverAPIError as e_simple:
+            print(f"재시도 중에도 오류 발생: {e_simple}")
+            return []  # 재시도 실패 시 빈 리스트 반환
+            
     return results

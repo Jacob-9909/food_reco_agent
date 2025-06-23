@@ -1,10 +1,14 @@
-from langgraph.graph import StateGraph, END
+# 표준 라이브러리
+import os
+from typing import List, TypedDict, Dict, Any
+
+# 서드파티 라이브러리
+from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
 from langchain_openai import OpenAI
-import os
-from typing import TypedDict, Annotated, List
-import operator
-from dotenv import load_dotenv
+from langgraph.graph import END, StateGraph
+
+# 로컬 애플리케이션
 from naver_search import search_restaurants as naver_search
 from restaurant_data import search_restaurants as backup_search
 
@@ -20,11 +24,12 @@ class GraphState(TypedDict):
     cuisine_preference: str
     weather: str
     location: str
+    search_results: List[Dict[str, str]]
     recommendations: List[str]
     error: str
 
 # 노드 함수 정의
-def get_user_input(state: GraphState):
+def get_user_input(state: GraphState) -> GraphState:
     """사용자로부터 입력을 받는 노드"""
     print("---사용자 입력 받기---")
     try:
@@ -38,65 +43,72 @@ def get_user_input(state: GraphState):
         state['error'] = f"입력 중 오류가 발생했습니다: {e}"
     return state
 
-def search_restaurants(state: GraphState):
-    """네이버 웹 검색 API를 사용하여 맛집 검색"""
+def search_restaurants(state: GraphState) -> GraphState:
+    """네이버 또는 정적 데이터를 사용하여 맛집을 검색하고 search_results에 저장합니다."""
     print("---맛집 검색 중---")
     try:
-        if not state.get('location') or not state.get('cuisine_preference') or not state.get('weather'):
-            raise ValueError(f"검색에 필요한 입력값 누락: location={state.get('location')}, cuisine_preference={state.get('cuisine_preference')}, weather={state.get('weather')}")
+        if not all(state.get(k) for k in ['location', 'cuisine_preference', 'weather']):
+            raise ValueError("검색에 필요한 'location', 'cuisine_preference', 'weather' 정보가 누락되었습니다.")
 
-        try:
-            print("네이버 API로 맛집 검색 시도 중...")
-            results = naver_search(
+        print("네이버 API로 맛집 검색 시도 중...")
+        results = naver_search(
+            location=state['location'],
+            cuisine=state['cuisine_preference'],
+            weather=state['weather']
+        )
+
+        if not results:
+            print("네이버 API 검색 결과가 없거나 오류가 발생했습니다. 정적 데이터로 대체합니다.")
+            backup_results_str = backup_search(
                 location=state['location'],
                 cuisine=state['cuisine_preference'],
                 weather=state['weather']
             )
-            if not results or results[0].startswith("검색 중 오류") or results[0].startswith("API 호출"):
-                raise Exception(results[0] if results else "네이버 API 검색 결과가 없습니다.")
-            print(f"네이버 검색 결과: {results}")
-        except Exception as e:
-            print(f"네이버 API 검색 오류: {e}. 정적 데이터로 대체합니다.")
-            results = backup_search(
-                location=state['location'],
-                cuisine=state['cuisine_preference'],
-                weather=state['weather']
-            )
-            print(f"정적 데이터 검색 결과: {results}")
+            print(f"정적 데이터 검색 결과: {backup_results_str}")
 
-        state['recommendations'] = results[:5]
+            # 백업 데이터(문자열 리스트)를 딕셔너리 리스트로 변환
+            results = []
+            for item_str in backup_results_str:
+                parts = item_str.split('\n')
+                results.append({
+                    'title': parts[0] if len(parts) > 0 else '',
+                    'description': parts[1] if len(parts) > 1 else '',
+                    'link': parts[2] if len(parts) > 2 else ''
+                })
+
+        state['search_results'] = results[:5]
         state['error'] = ""
     except ValueError as ve:
         print(f"입력값 오류: {ve}")
-        state['recommendations'] = []
-        state['error'] = f"입력값 오류: {ve}"
+        state['search_results'] = []
+        state['error'] = str(ve)
     except Exception as e:
         print(f"검색 중 오류 발생: {e}")
-        state['recommendations'] = []
+        state['search_results'] = []
         state['error'] = f"맛집 검색 중 오류가 발생했습니다: {e}"
     return state
 
-def recommend_restaurants(state: GraphState):
+def recommend_restaurants(state: GraphState) -> GraphState:
     """검색된 맛집을 바탕으로 최종 추천"""
     print("---맛집 추천---")
     if state['error']:
         print(f"오류로 인해 추천을 진행할 수 없습니다: {state['error']}")
         return state
 
-    if not state['recommendations']:
+    if not state.get('search_results'):
         print("추천할 맛집이 없습니다.")
         state['recommendations'] = ["추천할 맛집을 찾지 못했습니다."]
         return state
 
-    # 네이버 검색 결과 포맷팅
+    # 검색 결과를 바탕으로 프롬프트 생성
     formatted_recommendations = []
-    for i, recommendation in enumerate(state['recommendations'], 1):
-        parts = recommendation.split('\n')
-        if len(parts) >= 1:
-            title = parts[0]
-            description = parts[1] if len(parts) > 1 else ""
-            formatted_rec = f"{i}. {title} - {description[:500]}{'...' if len(description) > 500 else ''}"
-            formatted_recommendations.append(formatted_rec)
+    for i, result in enumerate(state['search_results'], 1):
+        title = result.get('title', '제목 없음')
+        description = result.get('description', '')
+        # 링크 정보는 LLM에 직접 제공하기보다, 최종 결과물에 포함하는 것이 더 유용할 수 있습니다.
+        formatted_rec = f"{i}. {title} - {description[:500]}{'...' if len(description) > 500 else ''}"
+        formatted_recommendations.append(formatted_rec)
+        
     try:
         print("OpenAI를 사용하여 맛집 추천을 개인화합니다...")
         llm = OpenAI(temperature=0.7)
@@ -113,26 +125,26 @@ def recommend_restaurants(state: GraphState):
             f"최대 3개의 맛집을 추천하고, 각 맛집에 대한 특징과 추천 이유를 **대표 메뉴와 전반적인 평점(별점 표현)**을 포함하여 한국어로 작성해주세요."
         )
         
-        refined_recommendation = llm(prompt)
+        refined_recommendation = llm.invoke(prompt)
         print("OpenAI 추천 결과:")
         print(refined_recommendation)
         
         state['recommendations'] = [refined_recommendation]
     except Exception as e:
         print(f"OpenAI 추천 중 오류 발생: {e}")
-        print("오류로 인해 네이버 검색 결과를 그대로 사용합니다.")
+        print("오류로 인해 포맷팅된 검색 결과를 그대로 사용합니다.")
         state['recommendations'] = formatted_recommendations
     
     return state
 
 # 조건부 엣지 함수
-def should_continue(state: GraphState):
+def should_continue(state: GraphState) -> str:
     """에러 발생 여부에 따라 다음 노드 결정"""
-    if state['error']:
+    if state.get('error'):
         return "handle_error"
     return "recommend_restaurants"
 
-def handle_error_node(state: GraphState):
+def handle_error_node(state: GraphState) -> GraphState:
     """에러 처리 노드"""
     print(f"---오류 처리---")
     print(f"오류 발생: {state['error']}")
@@ -171,17 +183,22 @@ if __name__ == "__main__":
         "cuisine_preference": "",
         "weather": "",
         "location": "",
+        "search_results": [],
         "recommendations": [],
         "error": ""
     }
-    inputs = {"messages": [HumanMessage(content="안녕하세요 저는 맛집 추천 에이전트 입니다. 본인의 성향에 따른 맛집을 추천해드립니다")]} # 초기 메시지 (필요시)
-    app.invoke(inputs) 
     
-    results = app.invoke(initial_state)
+    # LangGraph 실행 (예시: 초기 상태를 직접 제공)
+    # app.invoke(initial_state) 와 같이 직접 호출하거나,
+    # 사용자 입력을 받는 흐름을 시작할 수 있습니다.
+    # 아래는 get_user_input 부터 시작하는 전체 흐름입니다.
+    
+    final_results = app.invoke(initial_state) # get_user_input부터 시작
+    
     print("\n---최종 결과---")
-    if results.get('recommendations'):
+    if final_results.get('recommendations'):
         print("추천된 맛집:")
-        for r in results['recommendations']:
+        for r in final_results['recommendations']:
             print(f"- {r}")
-    if results.get('error'):
-        print(f"오류: {results['error']}")
+    if final_results.get('error'):
+        print(f"오류: {final_results['error']}")
