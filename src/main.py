@@ -27,6 +27,7 @@ class GraphState(TypedDict):
     search_results: List[Dict[str, str]]
     recommendations: List[str]
     error: str
+    user_profile: Dict[str, Any]  # 사용자 프로필 정보 추가
 
 # 노드 함수 정의
 def get_user_input(state: GraphState) -> GraphState:
@@ -42,6 +43,131 @@ def get_user_input(state: GraphState) -> GraphState:
         print(f"입력 중 오류 발생: {e}")
         state['error'] = f"입력 중 오류가 발생했습니다: {e}"
     return state
+
+def analyze_user_preferences(state: GraphState) -> GraphState:
+    """사용자 선호도를 분석하고 프로필을 생성하는 노드"""
+    print("---사용자 선호도 분석---")
+    try:
+        age = state['age']
+        cuisine = state['cuisine_preference']
+        weather = state['weather']
+        
+        # 나이대별 선호도 패턴 분석
+        age_group = ""
+        if age < 20:
+            age_group = "10대"
+        elif age < 30:
+            age_group = "20대"
+        elif age < 40:
+            age_group = "30대"
+        elif age < 50:
+            age_group = "40대"
+        elif age < 60:
+            age_group = "50대"
+        else:
+            age_group = "60대 이상"
+        
+        # 날씨별 음식 선호도 분석
+        weather_preferences = {
+            "맑음": ["샐러드", "BBQ", "피자", "아이스크림"],
+            "흐림": ["국수", "스튜", "핫팟", "커피"],
+            "비": ["국수", "스튜", "핫팟", "따뜻한 음식"],
+            "눈": ["핫팟", "스튜", "따뜻한 국", "따뜻한 음료"],
+            "더움": ["냉면", "샐러드", "아이스크림", "콜드브루"],
+            "추움": ["핫팟", "스튜", "따뜻한 국", "따뜻한 음료"]
+        }
+        
+        # 계절별 추천 로직
+        import datetime
+        current_month = datetime.datetime.now().month
+        season = ""
+        if current_month in [3, 4, 5]:
+            season = "봄"
+        elif current_month in [6, 7, 8]:
+            season = "여름"
+        elif current_month in [9, 10, 11]:
+            season = "가을"
+        else:
+            season = "겨울"
+        
+        # 나이대별 일반적인 선호도
+        age_preferences = {
+            "10대": ["피자", "햄버거", "치킨", "아이스크림", "떡볶이"],
+            "20대": ["카페", "분식", "치킨", "피자", "샐러드"],
+            "30대": ["한식", "양식", "카페", "치킨", "피자"],
+            "40대": ["한식", "양식", "중식", "일식", "카페"],
+            "50대": ["한식", "중식", "일식", "양식", "전통음식"],
+            "60대 이상": ["한식", "전통음식", "중식", "일식", "건강식"]
+        }
+        
+        # 사용자 프로필 생성
+        user_profile = {
+            "age_group": age_group,
+            "season": season,
+            "weather_condition": weather,
+            "preferred_cuisine": cuisine,
+            "age_based_preferences": age_preferences.get(age_group, []),
+            "weather_based_preferences": weather_preferences.get(weather, []),
+            "seasonal_recommendations": get_seasonal_recommendations(season),
+            "dietary_considerations": get_dietary_considerations(age),
+            "price_range": get_price_range_by_age(age),
+            "ambiance_preference": get_ambiance_preference(age_group)
+        }
+        
+        state['user_profile'] = user_profile
+        print(f"사용자 프로필 생성 완료: {age_group}, {season} 계절, {weather} 날씨")
+        print(f"나이대별 선호도: {user_profile['age_based_preferences']}")
+        print(f"날씨별 선호도: {user_profile['weather_based_preferences']}")
+        
+    except Exception as e:
+        print(f"선호도 분석 중 오류 발생: {e}")
+        state['error'] = f"선호도 분석 중 오류가 발생했습니다: {e}"
+    
+    return state
+
+def get_seasonal_recommendations(season: str) -> List[str]:
+    """계절별 추천 음식"""
+    seasonal_foods = {
+        "봄": ["나물", "딸기", "한우", "봄나물", "새싹채소"],
+        "여름": ["냉면", "빙수", "콜드브루", "샐러드", "아이스크림"],
+        "가을": ["게", "전복", "송이버섯", "단풍", "고구마"],
+        "겨울": ["핫팟", "스튜", "따뜻한 국", "따뜻한 음료", "겨울나물"]
+    }
+    return seasonal_foods.get(season, [])
+
+def get_dietary_considerations(age: int) -> List[str]:
+    """나이별 식이 고려사항"""
+    if age < 20:
+        return ["영양 균형", "성장 촉진"]
+    elif age < 40:
+        return ["칼로리 관리", "영양 균형"]
+    elif age < 60:
+        return ["건강 관리", "칼로리 제한"]
+    else:
+        return ["건강식", "소화가 잘되는 음식", "영양소 보충"]
+
+def get_price_range_by_age(age: int) -> str:
+    """나이별 가격대 선호도"""
+    if age < 20:
+        return "저가"
+    elif age < 30:
+        return "중저가"
+    elif age < 50:
+        return "중가"
+    else:
+        return "중고가"
+
+def get_ambiance_preference(age_group: str) -> List[str]:
+    """나이대별 분위기 선호도"""
+    ambiance_preferences = {
+        "10대": ["트렌디", "인스타그래머블", "시끌벅적"],
+        "20대": ["트렌디", "로맨틱", "친근함"],
+        "30대": ["세련됨", "편안함", "로맨틱"],
+        "40대": ["고급스러움", "편안함", "전통적"],
+        "50대": ["고급스러움", "전통적", "편안함"],
+        "60대 이상": ["전통적", "편안함", "고급스러움"]
+    }
+    return ambiance_preferences.get(age_group, [])
 
 def search_restaurants(state: GraphState) -> GraphState:
     """네이버 또는 정적 데이터를 사용하여 맛집을 검색하고 search_results에 저장합니다."""
@@ -112,17 +238,37 @@ def recommend_restaurants(state: GraphState) -> GraphState:
     try:
         print("OpenAI를 사용하여 맛집 추천을 개인화합니다...")
         llm = OpenAI(temperature=0.7)
+        
+        # 사용자 프로필 정보를 포함한 향상된 프롬프트
+        user_profile = state.get('user_profile', {})
+        profile_info = ""
+        if user_profile:
+            profile_info = f"""
+사용자 프로필 분석 결과:
+- 나이대: {user_profile.get('age_group', 'N/A')}
+- 계절: {user_profile.get('season', 'N/A')}
+- 날씨: {user_profile.get('weather_condition', 'N/A')}
+- 나이대별 선호도: {', '.join(user_profile.get('age_based_preferences', []))}
+- 날씨별 선호도: {', '.join(user_profile.get('weather_based_preferences', []))}
+- 계절별 추천: {', '.join(user_profile.get('seasonal_recommendations', []))}
+- 식이 고려사항: {', '.join(user_profile.get('dietary_considerations', []))}
+- 가격대: {user_profile.get('price_range', 'N/A')}
+- 분위기 선호도: {', '.join(user_profile.get('ambiance_preference', []))}
+"""
+        
         prompt = (
             f"다음은 사용자의 입력 정보입니다:\n"
             f"나이: {state['age']}\n"
             f"선호 음식: {state['cuisine_preference']}\n"
             f"날씨: {state['weather']}\n"
             f"지역: {state['location']}\n"
+            f"{profile_info}\n"
             f"검색된 맛집 목록:\n"
             f"{chr(10).join(formatted_recommendations)}\n\n"
             f"위 정보를 바탕으로 사용자에게 가장 적합한 맛집을 추천해주세요."
-            f"나이, 날씨, 지역, 선호 음식을 고려하여 맛집을 선별하고 그 이유도 간략히 설명해주세요. "
-            f"최대 3개의 맛집을 추천하고, 각 맛집에 대한 특징과 추천 이유를 **대표 메뉴와 전반적인 평점(별점 표현)**을 포함하여 한국어로 작성해주세요."
+            f"나이대별 선호도, 날씨, 계절, 식이 고려사항을 종합적으로 고려하여 맛집을 선별하고 그 이유도 상세히 설명해주세요. "
+            f"최대 3개의 맛집을 추천하고, 각 맛집에 대한 특징과 추천 이유를 **대표 메뉴, 가격대, 분위기, 전반적인 평점(별점 표현)**을 포함하여 한국어로 작성해주세요."
+            f"사용자의 나이대와 선호도를 고려한 맞춤형 추천이 되도록 해주세요."
         )
         
         refined_recommendation = llm.invoke(prompt)
@@ -154,13 +300,15 @@ def handle_error_node(state: GraphState) -> GraphState:
 workflow = StateGraph(GraphState)
 
 workflow.add_node("get_user_input", get_user_input)
+workflow.add_node("analyze_user_preferences", analyze_user_preferences)
 workflow.add_node("search_restaurants", search_restaurants)
 workflow.add_node("recommend_restaurants", recommend_restaurants)
 workflow.add_node("handle_error", handle_error_node)
 
 
 workflow.set_entry_point("get_user_input")
-workflow.add_edge("get_user_input", "search_restaurants")
+workflow.add_edge("get_user_input", "analyze_user_preferences")
+workflow.add_edge("analyze_user_preferences", "search_restaurants")
 workflow.add_conditional_edges(
     "search_restaurants",
     should_continue,
@@ -185,7 +333,8 @@ if __name__ == "__main__":
         "location": "",
         "search_results": [],
         "recommendations": [],
-        "error": ""
+        "error": "",
+        "user_profile": {}
     }
     
     # LangGraph 실행 (예시: 초기 상태를 직접 제공)
