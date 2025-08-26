@@ -3,7 +3,7 @@ import json
 import urllib.request
 import urllib.parse
 import urllib.error
-from typing import List, Dict
+from typing import List, Dict, Any
 
 class NaverAPIError(Exception):
     """네이버 API 호출 시 발생하는 오류"""
@@ -81,30 +81,35 @@ def search_web(query: str, display: int = 50) -> List[Dict[str, str]]:
     except Exception as e:
         raise NaverAPIError(f"검색 중 알 수 없는 오류 발생: {e}") from e
 
-def search_restaurants(location: str, cuisine: str, weather: str) -> List[Dict[str, str]]:
+def search_restaurants(user_profile: Dict[str, Any]) -> List[Dict[str, str]]:
     """
-    네이버 웹 검색 API를 사용하여 맛집을 검색합니다.
+    사용자 프로필을 기반으로 네이버 웹 검색 API를 사용하여 맛집을 검색합니다.
     
     Args:
-        location (str): 위치 (예: '서울', '부산', '대구')
-        cuisine (str): 음식 종류 (예: '한식', '중식', '일식', '양식')
-        weather (str): 날씨 (예: '맑음', '흐림', '비', '더움', '추움')
+        user_profile (Dict[str, Any]): 사용자 프로필 정보
         
     Returns:
         List[Dict[str, str]]: 맛집 추천 목록
     """
-    # 날씨에 따른 키워드 추가
-    weather_keywords = {
-        "맑음": "뷰 좋은",
-        "흐림": "아늑한",
-        "비": "실내",
-        "더움": "시원한",
-        "추움": "따뜻한"
-    }
+    location = user_profile.get('location', '')
+    cuisine = user_profile.get('preferred_cuisine', '')
+    weather = user_profile.get('weather_condition', '')
+    companion_type = user_profile.get('companion_type', '')
+    ambiance = user_profile.get('preferred_ambiance', '')
+    special_requirements = user_profile.get('special_requirements', [])
     
-    # 검색어 구성
-    weather_keyword = weather_keywords.get(weather, "")
-    query = f"{location} {cuisine} {weather_keyword} 맛집 추천"
+    # 특별 요구사항을 검색어에 추가
+    requirements_str = ""
+    if special_requirements and special_requirements != "없음":
+        if isinstance(special_requirements, str):
+            requirements_str = special_requirements
+        elif isinstance(special_requirements, list):
+            requirements_str = " ".join(special_requirements)
+    
+    # 검색어 조합
+    query_parts = [location, cuisine, weather, companion_type, ambiance, requirements_str, "맛집 추천"]
+    query = " ".join([part for part in query_parts if part])
+    
     print(f"네이버 검색어: {query}")
     
     try:

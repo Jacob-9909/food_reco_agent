@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
 
 # 로컬 애플리케이션
-from types import GraphState
+from custom_types import GraphState
 from nodes import (
     get_user_input,
     analyze_user_preferences,
@@ -66,10 +66,31 @@ if __name__ == "__main__":
     # LangGraph 실행
     final_results = app.invoke(initial_state) # get_user_input부터 시작
     
-    print("\n---최종 결과---")
+    print("\n" + "="*60)
+    print("🍽️  맛집 추천 결과")
+    print("="*60)
+    
     if final_results.get('recommendations'):
-        print("추천된 맛집:")
-        for r in final_results['recommendations']:
-            print(f"- {r}")
+        for i, recommendation in enumerate(final_results['recommendations'], 1):
+            if hasattr(recommendation, 'content'):
+                # Gemini 응답 객체인 경우 content 추출
+                content = recommendation.content
+            else:
+                # 일반 문자열인 경우
+                content = str(recommendation)
+            
+            # 마크다운 형식 제거하고 깔끔하게 출력
+            content = content.replace('**', '').replace('*', '')
+            content = content.replace('## ', '\n').replace('# ', '\n')
+            
+            print(f"\n📋 추천 {i}:")
+            print("-" * 40)
+            print(content)
+            print("-" * 40)
+    
     if final_results.get('error'):
-        print(f"오류: {final_results['error']}")
+        print(f"\n❌ 오류: {final_results['error']}")
+    
+    print("\n" + "="*60)
+    print("맛집 추천이 완료되었습니다! 🎉")
+    print("="*60)

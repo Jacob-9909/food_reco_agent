@@ -59,6 +59,7 @@ dependencies = [
     "zstandard==0.23.0", # 이전에 uv pip install로 추가했던 것
     "langchain-google-community==2.0.7",
     "langchain-openai>=0.3.19",
+    "langchain-google-genai>=2.1.5",
 ]
 
 [build-system]
