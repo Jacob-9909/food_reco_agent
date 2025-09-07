@@ -1,76 +1,26 @@
-from sqlalchemy import create_engine, text, Column, Integer, String, DateTime, Boolean, and_, or_, func, Float
-from sqlalchemy.orm import declarative_base, sessionmaker
-from dotenv import load_dotenv
-import os
-load_dotenv()
+"""
+SQLAlchemy ORM 쿼리 예제 모음
 
-# class postgres:
-#     def __init__(self):
-#         self.user = os.getenv('DB_USER')           # PostgreSQL 사용자 이름(문제발생)
-#         self.password = os.getenv('DB_PASSWORD')     # PostgreSQL 비밀번호
-#         self.host = os.getenv('DB_HOST')           # 서버 주소 (원격일 경우 IP 주소)
-#         self.port = os.getenv('DB_PORT')                # PostgreSQL 기본 포트
-#         self.database = os.getenv('DB_DATABASE')     # 사용할 데이터베이스 이름
+이 모듈은 데이터베이스 모델을 사용한 다양한 ORM 쿼리 예제들을 제공합니다.
+실제 프로덕션 코드에서는 이 예제들을 참고하여 필요한 쿼리를 작성하세요.
+"""
 
-#     def dbconnect(self):
-#         # PostgreSQL 연결 설정
-#         engine = create_engine(f'postgresql+psycopg2://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}')
-#         try:
-#             with engine.connect() as conn:
-#                 print('dbconnect success')
-#                 return conn
-#         except Exception as e:
-#             print(f'dbconnect error: {e}')
-#             return None
-    
-#     def db_query(self, query: str):
-#         with self.dbconnect() as conn:
-#             return conn.execute(text(query))
+from sqlalchemy import and_, or_, func
+from sqlalchemy.orm import Session
 
-Base = declarative_base()
-
-class Store(Base):
-    __tablename__ = 'food_store'
-    __table_args__ = {'schema': 'food_reco'}
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    region_id = Column(Integer)
-    min_price = Column(Integer)
-    max_price = Column(Integer)
-    opening_hours = Column(String)
-    rating = Column(Float)
-    created_at = Column(DateTime)
-
-    def __repr__(self):
-        return f"<Store(id={self.id}, name={self.name}, region_id={self.region_id}, min_price={self.min_price}, max_price={self.max_price}, rating={self.rating})>"
-
-class Region(Base):
-    __tablename__ = 'mood'
-    __table_args__ = {'schema': 'food_reco'}
-    id = Column(Integer, primary_key=True)
-    si = Column(String)
-    gun = Column(String)
-    gu = Column(String)
-
-    def __repr__(self):
-        return f"<Mood(id={self.id}, si={self.si}, gun={self.gun}, gu={self.gu})>"
-
-class Mood(Base):
-    __tablename__ = 'region'
-    __table_args__ = {'schema': 'food_reco'}
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-
-    def __repr__(self):
-        return f"<Region(id={self.id}, name={self.name})>"
-
-# 데이터베이스 연결 설정
-engine = create_engine(f'postgresql+psycopg2://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}@{os.getenv("DB_HOST")}:{os.getenv("DB_PORT")}/{os.getenv("DB_DATABASE")}')
-Session = sessionmaker(bind=engine)
+# 모듈화된 데이터베이스 관련 클래스들을 import
+try:
+    # 패키지 내에서 import할 때
+    from .models import Store, Region, Mood
+    from .database import get_session, test_database_connection
+except ImportError:
+    # 직접 실행할 때
+    from models import Store, Region, Mood
+    from database import get_session, test_database_connection
 
 def orm_query_examples():
     """SQLAlchemy ORM을 사용한 다양한 쿼리 예제들"""
-    session = Session()
+    session = get_session()
     
     try:
         print("=== SQLAlchemy ORM 쿼리 예제 ===\n")
@@ -190,7 +140,7 @@ def orm_query_examples():
 
 def advanced_orm_queries():
     """고급 ORM 쿼리 예제들"""
-    session = Session()
+    session = get_session()
     
     try:
         print("\n=== 고급 ORM 쿼리 예제 ===\n")
@@ -277,7 +227,7 @@ def advanced_orm_queries():
 
 def table_specific_queries():
     """각 테이블별 특화된 쿼리 예제들"""
-    session = Session()
+    session = get_session()
     
     try:
         print("\n=== 테이블별 특화 쿼리 예제 ===\n")
@@ -354,12 +304,25 @@ def table_specific_queries():
         session.close()
 
 if __name__ == "__main__":
-    # 기본 ORM 쿼리 예제 실행
-    orm_query_examples()
-    
-    # # 고급 ORM 쿼리 예제 실행
-    # advanced_orm_queries()
-    
-    # # 테이블별 특화 쿼리 예제 실행
-    # table_specific_queries()
+    try:
+        # 데이터베이스 연결 테스트
+        if not test_database_connection():
+            print("데이터베이스 연결에 실패했습니다. 환경변수를 확인해주세요.")
+            exit(1)
+        
+        # 기본 ORM 쿼리 예제 실행
+        orm_query_examples()
+        
+        # # 고급 ORM 쿼리 예제 실행
+        # advanced_orm_queries()
+        
+        # # 테이블별 특화 쿼리 예제 실행
+        # table_specific_queries()
+        
+    except ValueError as e:
+        print(f"환경변수 설정 오류: {e}")
+        exit(1)
+    except Exception as e:
+        print(f"예상치 못한 오류가 발생했습니다: {e}")
+        exit(1)
 
