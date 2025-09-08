@@ -3,8 +3,8 @@ from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
 
 # 로컬 애플리케이션
-from custom_types import GraphState
-from nodes import (
+from .graph_types import GraphState
+from .nodes import (
     get_user_input,
     analyze_user_preferences,
     search_restaurants,

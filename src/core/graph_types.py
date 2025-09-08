@@ -13,3 +13,4 @@ class GraphState(TypedDict):
     recommendations: List[str] # 추천 결과
     error: str # 에러 메시지
     user_profile: Dict[str, Any] # 사용자 프로필 정보 추가
+    session_id: int # 데이터베이스 세션 ID

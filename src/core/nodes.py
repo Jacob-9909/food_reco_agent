@@ -6,11 +6,12 @@ from typing import List, Dict, Any
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 # 로컬 애플리케이션
-from naver_search import search_restaurants as naver_search
-from restaurant_data import search_restaurants as backup_search
+from ..services.naver_search import search_restaurants_naver
+from ..services.restaurant_data import search_restaurants_backup
+from ..database import save_user_session, save_search_results, save_recommendation
 
 # 타입 정의
-from custom_types import GraphState
+from .graph_types import GraphState
 
 # 사용자 입력 받기
 def get_user_input(state: GraphState) -> GraphState:
@@ -41,6 +42,24 @@ def get_user_input(state: GraphState) -> GraphState:
         print(f"\n입력 완료:")
         print(f"나이={state['age']}, 선호음식={state['cuisine_preference']}, 날씨={state['weather']}, 지역={state['location']}")
         print(f"동반자유형={state['companion_type']}, 분위기={state['ambiance']}, 특별요구사항={state['special_requirements']}")
+        
+        # 사용자 입력을 데이터베이스에 저장
+        try:
+            user_data = {
+                'age': state['age'],
+                'cuisine_preference': state['cuisine_preference'],
+                'weather': state['weather'],
+                'location': state['location'],
+                'companion_type': state['companion_type'],
+                'ambiance': state['ambiance'],
+                'special_requirements': state['special_requirements']
+            }
+            session_id = save_user_session(user_data)
+            state['session_id'] = session_id
+            print(f"✅ 사용자 입력이 데이터베이스에 저장되었습니다. (세션 ID: {session_id})")
+        except Exception as db_error:
+            print(f"⚠️ 데이터베이스 저장 실패: {db_error}")
+            # DB 저장 실패해도 워크플로우는 계속 진행
         
     except Exception as e:
         print(f"입력 중 오류 발생: {e}")
@@ -142,10 +161,23 @@ def search_restaurants(state: GraphState) -> GraphState:
             raise ValueError("사용자 프로필 정보가 누락되었습니다.")
 
         print("네이버 API로 맛집 검색 시도 중...")
-        results = naver_search(
+        results = search_restaurants_naver(
             user_profile=state['user_profile']
         )
         state['search_results'] = results
+        
+        # 검색 결과를 데이터베이스에 저장
+        if results and state.get('session_id'):
+            try:
+                search_result_ids = save_search_results(
+                    session_id=state['session_id'],
+                    search_results=results,
+                    source="naver"
+                )
+                print(f"✅ 검색 결과가 데이터베이스에 저장되었습니다. (결과 ID: {search_result_ids})")
+            except Exception as db_error:
+                print(f"⚠️ 검색 결과 DB 저장 실패: {db_error}")
+                # DB 저장 실패해도 워크플로우는 계속 진행
     except ValueError as ve:
         print(f"입력값 오류: {ve}")
         state['search_results'] = []
@@ -221,6 +253,25 @@ def recommend_restaurants(state: GraphState) -> GraphState:
         # print(refined_recommendation)
         
         state['recommendations'] = [refined_recommendation]
+        
+        # 추천 결과를 데이터베이스에 저장
+        if state.get('session_id'):
+            try:
+                # Gemini 응답 객체인 경우 content 추출
+                if hasattr(refined_recommendation, 'content'):
+                    recommendation_text = refined_recommendation.content
+                else:
+                    recommendation_text = str(refined_recommendation)
+                
+                recommendation_id = save_recommendation(
+                    session_id=state['session_id'],
+                    recommendation_text=recommendation_text,
+                    ai_model="gemini-2.0-flash"
+                )
+                print(f"✅ 추천 결과가 데이터베이스에 저장되었습니다. (추천 ID: {recommendation_id})")
+            except Exception as db_error:
+                print(f"⚠️ 추천 결과 DB 저장 실패: {db_error}")
+                # DB 저장 실패해도 워크플로우는 계속 진행
     except Exception as e:
         print(f"gemini 추천 중 오류 발생: {e}")
         print("오류로 인해 포맷팅된 검색 결과를 그대로 사용합니다.")
