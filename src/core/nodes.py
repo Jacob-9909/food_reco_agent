@@ -92,17 +92,7 @@ def analyze_user_preferences(state: GraphState) -> GraphState:
             age_group = "50대"
         else:
             age_group = "60대 이상"
-        
-        # 날씨별 음식 선호도 분석
-        weather_preferences = {
-            "맑음": ["BBQ", "피자", "치킨", "샐러드", "아이스크림", "카페"],
-            "흐림": ["국수", "스튜", "핫팟", "커피", "따뜻한 음식"],
-            "비": ["국수", "스튜", "핫팟", "따뜻한 국", "커피", "따뜻한 음식"],
-            "눈": ["핫팟", "스튜", "따뜻한 국", "따뜻한 음료", "커피"],
-            "더움": ["냉면", "샐러드", "아이스크림", "콜드브루", "빙수", "냉국"],
-            "추움": ["핫팟", "스튜", "따뜻한 국", "따뜻한 음료", "커피", "따뜻한 음식"]
-        }
-        
+
         # 계절별 추천 로직
         current_month = datetime.datetime.now().month
         season = ""
@@ -115,16 +105,6 @@ def analyze_user_preferences(state: GraphState) -> GraphState:
         else:
             season = "겨울"
         
-        # 나이대별 일반적인 선호도
-        age_preferences = {
-            "10대": ["피자", "햄버거", "치킨", "아이스크림", "떡볶이"],
-            "20대": ["카페", "분식", "치킨", "피자", "샐러드"],
-            "30대": ["한식", "양식", "카페", "치킨", "피자"],
-            "40대": ["한식", "양식", "중식", "일식", "카페"],
-            "50대": ["한식", "중식", "일식", "양식", "전통음식"],
-            "60대 이상": ["한식", "전통음식", "중식", "일식", "건강식"]
-        }
-        
         # 사용자 프로필 생성
         user_profile = {
             "location": state['location'],
@@ -135,16 +115,12 @@ def analyze_user_preferences(state: GraphState) -> GraphState:
             "companion_type": companion_type,
             "preferred_ambiance": ambiance,
             "special_requirements": special_requirements,
-            "age_based_preferences": age_preferences.get(age_group, []),
-            "weather_based_preferences": weather_preferences.get(weather, []),
         }
         
         state['user_profile'] = user_profile
         print(f"사용자 프로필 생성 완료: {age_group}, {season} 계절, {weather} 날씨")
         print(f"동반자유형: {companion_type}, 분위기: {ambiance}")
         print(f"특별요구사항: {special_requirements}")
-        print(f"나이대별 선호도: {user_profile['age_based_preferences']}")
-        print(f"날씨별 선호도: {user_profile['weather_based_preferences']}")
         
     except Exception as e:
         print(f"선호도 분석 중 오류 발생: {e}")
@@ -172,7 +148,8 @@ def search_restaurants(state: GraphState) -> GraphState:
                 search_result_ids = save_search_results(
                     session_id=state['session_id'],
                     search_results=results,
-                    source="naver"
+                    source="naver",
+                    cuisine_preference=state['cuisine_preference']
                 )
                 print(f"✅ 검색 결과가 데이터베이스에 저장되었습니다. (결과 ID: {search_result_ids})")
             except Exception as db_error:
