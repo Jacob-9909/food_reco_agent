@@ -79,7 +79,7 @@ class StorageService:
             self.session.rollback()
             raise SQLAlchemyError(f"사용자 세션 저장 실패: {e}")
     
-    def save_search_results(self, session_id: int, search_results: List[Dict[str, str]], source: str = "naver") -> List[int]:
+    def save_search_results(self, session_id: int, search_results: List[Dict[str, str]], source: str = "naver", cuisine_preference: str = "") -> List[int]:
         """
         검색 결과를 데이터베이스에 저장합니다.
         
@@ -104,6 +104,7 @@ class StorageService:
                     description=result.get('description', ''),
                     link=result.get('link', ''),
                     source=source,
+                    cuisine_preference=cuisine_preference,
                     created_at=datetime.datetime.now()
                 )
                 
@@ -212,7 +213,7 @@ def save_user_session(user_data: Dict[str, Any]) -> int:
         return storage.save_user_session(user_data)
 
 
-def save_search_results(session_id: int, search_results: List[Dict[str, str]], source: str = "naver") -> List[int]:
+def save_search_results(session_id: int, search_results: List[Dict[str, str]], source: str = "naver", cuisine_preference: str = "") -> List[int]:
     """
     검색 결과를 저장하는 편의 함수
     
@@ -220,12 +221,13 @@ def save_search_results(session_id: int, search_results: List[Dict[str, str]], s
         session_id (int): 사용자 세션 ID
         search_results (List[Dict[str, str]]): 검색 결과 리스트
         source (str): 검색 소스
-        
+        cuisine_preference (str): 선호 음식 종류
+
     Returns:
         List[int]: 저장된 검색 결과 ID 리스트
     """
     with StorageService() as storage:
-        return storage.save_search_results(session_id, search_results, source)
+        return storage.save_search_results(session_id, search_results, source, cuisine_preference)
 
 
 def save_recommendation(session_id: int, recommendation_text: str, ai_model: str = "gemini") -> int:

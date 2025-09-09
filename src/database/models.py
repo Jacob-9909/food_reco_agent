@@ -72,12 +72,13 @@ class SearchResult(Base):
     description = Column(Text)
     link = Column(String)
     source = Column(String)
+    cuisine_preference = Column(String)
     created_at = Column(DateTime)
 
     def __repr__(self) -> str:
         """객체의 문자열 표현을 반환합니다."""
         return (f"<SearchResult(id={self.id}, session_id={self.session_id}, "
-                f"title={self.title}, source={self.source})>")
+                f"title={self.title}, source={self.source}, cuisine_preference={self.cuisine_preference})>")
 
 
 class Recommendation(Base):
