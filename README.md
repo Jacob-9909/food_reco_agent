@@ -86,8 +86,27 @@ GOOGLE_CSE_ID=123456789012345678901:abcdefghijk
 
 ## 사용 방법
 
+### 1. CLI 모드 (기존 방식)
 ```bash
-python src/main.py
+python run_app.py
+```
+
+### 2. 웹 인터페이스 (새로운 방식)
+```bash
+# FastAPI 서버 실행
+python run_web.py  # 선택 1
+
+# Streamlit 웹 앱 실행 (별도 터미널)
+python run_web.py  # 선택 2
+```
+
+### 3. 직접 실행
+```bash
+# FastAPI 서버
+python -m uvicorn src.api.main:app --reload
+
+# Streamlit 앱
+python -m streamlit run src/web/streamlit_app.py
 ```
 
 프롬프트에 따라 다음 정보를 입력하세요:
@@ -151,13 +170,42 @@ graph TD
 ```
 food_reco_agent/
 ├── src/
-│   ├── main.py              # 메인 애플리케이션 및 워크플로우
-│   ├── naver_search.py      # 네이버 API 검색 기능
-│   └── restaurant_data.py   # 정적 맛집 데이터
-├── requirements.txt         # Python 의존성
-├── pyproject.toml          # 프로젝트 설정
-├── .env-sample             # 환경 변수 템플릿
-└── README.md              # 프로젝트 문서
+│   ├── api/                # FastAPI 웹 서버
+│   │   ├── __init__.py
+│   │   └── main.py         # API 엔드포인트
+│   ├── web/                # 웹 인터페이스
+│   │   ├── __init__.py
+│   │   └── streamlit_app.py # Streamlit 웹 앱
+│   ├── core/               # 핵심 워크플로우
+│   │   ├── __init__.py
+│   │   ├── graph.py        # LangGraph 워크플로우
+│   │   ├── graph_types.py  # 상태 타입 정의
+│   │   └── nodes.py        # 워크플로우 노드들
+│   ├── database/           # 데이터베이스 관련
+│   │   ├── __init__.py
+│   │   ├── connection.py   # DB 연결
+│   │   ├── models.py       # SQLAlchemy 모델
+│   │   ├── queries.py      # 쿼리 함수들
+│   │   └── storage_service.py # 저장 서비스
+│   ├── services/           # 외부 서비스
+│   │   ├── __init__.py
+│   │   ├── naver_search.py # 네이버 API 검색
+│   │   └── restaurant_data.py # 정적 맛집 데이터
+│   └── utils/              # 유틸리티
+│       └── __init__.py
+├── tests/                  # 테스트 코드
+│   ├── __init__.py
+│   ├── test_api.py         # API 테스트
+│   ├── test_core.py        # 코어 모듈 테스트
+│   └── test_database.py    # 데이터베이스 테스트
+├── run_app.py              # CLI 실행 스크립트
+├── run_web.py              # 웹 서버 실행 스크립트
+├── run_tests.py            # 테스트 실행 스크립트
+├── create_tables.py        # DB 테이블 생성
+├── requirements.txt        # Python 의존성
+├── pyproject.toml         # 프로젝트 설정
+├── .env-sample            # 환경 변수 템플릿
+└── README.md             # 프로젝트 문서
 ```
 
 ## 개인화 추천 예시
