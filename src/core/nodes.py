@@ -15,8 +15,14 @@ from .graph_types import GraphState
 
 # 사용자 입력 받기
 def get_user_input(state: GraphState) -> GraphState:
-    """사용자로부터 입력을 받는 노드"""
+    """사용자로부터 입력을 받는 노드 (터미널 모드용)"""
     print("---사용자 입력 받기---")
+    
+    # API를 통해 이미 입력이 전달된 경우 건너뛰기
+    if state.get('age') and state.get('cuisine_preference') and state.get('location'):
+        print("이미 사용자 입력이 전달되었습니다. 입력 단계를 건너뜁니다.")
+        return state
+    
     try:
         state['age'] = int(input("나이를 입력하세요: "))
         state['cuisine_preference'] = input("선호하는 음식 종류를 입력하세요: ")
