@@ -109,6 +109,19 @@ python -m uvicorn src.api.main:app --reload
 python -m streamlit run src/web/streamlit_app.py
 ```
 
+### 4. React 프론트엔드 실행 (웹 화면)
+```bash
+# 새 터미널에서 프론트엔드 실행
+cd frontend
+npm install
+npm run dev
+
+# 브라우저에서 접속
+# http://localhost:3000
+```
+
+> 백엔드는 http://localhost:8000 에서 실행되어야 합니다. (다른 터미널에서 `python -m src.api.main`)
+
 프롬프트에 따라 다음 정보를 입력하세요:
 1. **나이**: 숫자로 입력 (예: 25)
 2. **선호 음식**: 원하는 음식 종류 (예: 한식, 피자, 치킨)
@@ -169,6 +182,7 @@ graph TD
 
 ```
 food_reco_agent/
+├── frontend/           # React 프론트엔드 (Vite + TypeScript + Tailwind)
 ├── src/
 │   ├── api/                # FastAPI 웹 서버
 │   │   ├── __init__.py
@@ -207,6 +221,52 @@ food_reco_agent/
 ├── .env-sample            # 환경 변수 템플릿
 └── README.md             # 프로젝트 문서
 ```
+
+## 프론트엔드(`frontend`) 상세 가이드
+
+### 요구 사항
+- **Node.js 18+**, **npm**
+- 백엔드 API 서버 실행: `python -m src.api.main` (기본 `http://localhost:8000`)
+
+### NPM 스크립트
+- **dev**: Vite 개발 서버 실행 (HMR). 기본 포트: 3000 → `npm run dev`
+- **build**: TypeScript 체크 후 Vite 프로덕션 빌드 → `npm run build` (산출물: `frontend/dist/`)
+- **preview**: 로컬에서 빌드 결과 미리보기 → `npm run preview`
+- **lint**: ESLint 실행 → `npm run lint`
+
+### 디렉토리/파일 설명
+- **`frontend/index.html`**: 루트 HTML 템플릿. `#root`에 React가 마운트됩니다.
+- **`frontend/vite.config.ts`**: Vite 설정. 개발 포트(기본 3000), 선택적 프록시(`/api` → `http://localhost:8000`) 포함.
+- **`frontend/tailwind.config.js`**, **`frontend/postcss.config.js`**: Tailwind/PostCSS 설정.
+- **`frontend/tsconfig.json`**, **`frontend/tsconfig.node.json`**: TypeScript 설정.
+- **`frontend/src/main.tsx`**: 앱 진입점. `App`을 DOM에 마운트.
+- **`frontend/src/App.tsx`**: 전체 레이아웃과 상태 관리. API 헬스체크, 폼 제출, 로딩/오류/결과 표시.
+- **`frontend/src/index.css`**: Tailwind 지시어 및 공통 유틸리티 클래스 정의.
+- **`frontend/src/services/api.ts`**: 백엔드 통신 유틸. `GET /health`, `POST /recommend` 호출.
+- **`frontend/src/types/index.ts`**: 요청/응답/도메인 타입 정의.
+- **`frontend/src/components/*`**: 화면 구성 요소 모음.
+  - **`Header.tsx`**: 상단 바.
+  - **`ApiStatus.tsx`**: API 연결 상태 배지.
+  - **`LoadingSpinner.tsx`**: 로딩 상태 표시.
+  - **`RecommendationForm.tsx`**: 입력 폼(나이/선호/날씨/지역/동반자/분위기/요구사항).
+  - **`RecommendationResults.tsx`**: 사용자 프로필/검색 결과/AI 추천/세션 정보 표시.
+
+
+### 실행/빌드
+1. 개발 실행
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   # http://localhost:3000
+   ```
+2. 프로덕션 빌드/미리보기
+   ```bash
+   npm run build
+   npm run preview
+   # 기본 http://localhost:4173
+   ```
+
 
 ## 개인화 추천 예시
 
